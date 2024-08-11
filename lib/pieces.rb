@@ -72,13 +72,39 @@ class Rook
 end
 
 class Knight
-  attr_reader :position, :color
+  SYMBOLS = { white: "♘", black: "♞" }
   def initialize(x, y, color)
     @position = [x, y]
     @color = color
+    @symbol = SYMBOLS[@color]
   end
+end
 
-  
+class Bishop
+  SYMBOLS = { white: "♗", black: "♝" }
+  def initialize(x, y, color)
+    @position = [x, y]
+    @color = color
+    @symbol = SYMBOLS[@color]
+  end
+end
+
+class Queen 
+  SYMBOLS = { white: "♕" , black: "♛" }
+  def initialize(x, y, color)
+    @position = [x, y]
+    @color = color
+    @symbol = SYMBOLS[@color]
+  end
+end
+
+class King
+  SYMBOLS = { white: "♔", black: "♚" }
+  def initialize(x, y, color)
+    @position = [x, y]
+    @color = color
+    @symbol = SYMBOLS[@color]
+  end
 end
 
 pwn = Pawn.new(4, 6, :black)
