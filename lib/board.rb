@@ -1,6 +1,10 @@
 class Board
   require_relative 'pawn'
   require_relative 'king'
+  require_relative 'queen'
+  require_relative 'rook'
+  require_relative 'knight'
+  require_relative 'bishop'
 
   LIGHT_SQUARE = "\e[47m   \e[0m" # White background
   DARK_SQUARE = "\e[100m   \e[0m" # Dark gray background
@@ -9,7 +13,7 @@ class Board
 
   def initialize
     @current_player = nil
-    @columns_arr = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+    @columns_arr = [' a', ' b', ' c', ' d', ' e', ' f', ' g', ' h']
     @grid = Array.new(8) { Array.new(8) }
     setup_board
   end
@@ -21,9 +25,22 @@ class Board
       end
     end
 
-    place_piece(King.new(7, 4, :black))
-    place_piece(King.new(0, 4, :white))
+    8.times do |col|
+      place_piece(Pawn.new(1, col, :white))
+      place_piece(Pawn.new(6, col, :black))
+    end
+    [:white, :black].each do |color|
+      back_rank = color == :white ? 0 : 7
+      place_piece(Rook.new(back_rank, 0, color))
+      place_piece(Knight.new(back_rank, 1, color))
+      place_piece(Bishop.new(back_rank, 2, color))
+      place_piece(Queen.new(back_rank, 3, color))
+      place_piece(King.new(back_rank, 4, color))
+      place_piece(Bishop.new(back_rank, 5, color))
+      place_piece(Knight.new(back_rank, 6, color))
+      place_piece(Rook.new(back_rank, 7, color))
   end
+end
 
   def place_piece(piece)
     x, y = piece.position
