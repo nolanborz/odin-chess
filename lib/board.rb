@@ -12,7 +12,7 @@ class Board
   attr_reader :current_player, :columns_arr, :grid, :captured_pieces_black, :captured_pieces_white, :pieces
 
   def initialize
-    @current_player = nil
+    @current_player = :white
     @columns_arr = [' a', ' b', ' c', ' d', ' e', ' f', ' g', ' h']
     @grid = Array.new(8) { Array.new(8) }
     @pieces = []
@@ -56,6 +56,11 @@ end
     piece = piece_at(from_x, from_y)
     return false unless piece
 
+    if piece.color != @current_player
+      puts "It's not #{piece.color}'s turn."
+      return false
+    end
+
     unless valid_move?(piece, from_x, from_y, to_x, to_y)
       puts "Invalid move for #{piece.color} #{piece.class}"
       return false
@@ -73,6 +78,10 @@ end
     place_piece(piece)
 
     true
+  end
+  
+  def set_current_player(player)
+    @current_player = player
   end
 
   def valid_move?(piece, from_x, from_y, to_x, to_y)
@@ -192,9 +201,8 @@ end
 end
 
 # Example usage:
-board = Board.new
-board.display
-board.move_piece(1, 1, 7, 7)
-board.display
-board.captured_pieces
-
+#board = Board.new
+#board.display
+#board.move_piece(1, 1, 7, 7)
+#board.display
+#board.captured_pieces
