@@ -9,13 +9,15 @@ class Board
   LIGHT_SQUARE = "\e[47m   \e[0m" # White background
   DARK_SQUARE = "\e[100m   \e[0m" # Dark gray background
 
-  attr_reader :current_player, :columns_arr, :grid
+  attr_reader :current_player, :columns_arr, :grid, :captured_pieces_black, :captured_pieces_white
 
   def initialize
     @current_player = nil
     @columns_arr = [' a', ' b', ' c', ' d', ' e', ' f', ' g', ' h']
     @grid = Array.new(8) { Array.new(8) }
     @pieces = []
+    @captured_pieces_white = []
+    @captured_pieces_black = []
     setup_board
   end
 
@@ -54,13 +56,28 @@ end
     piece = piece_at(from_x, from_y)
     return false unless piece
 
+    capture_piece?(from_x, from_y, to_x, to_y)
+    
     @grid[from_x][from_y] = (from_x + from_y).even? ? LIGHT_SQUARE : DARK_SQUARE
 
     piece.position = [to_x, to_y]
-
+    
     place_piece(piece)
 
     true
+  end
+
+  def capture_piece?(from_x, from_y, to_x, to_y)
+    if piece_at(to_x, to_y).color == piece_at(from_x, from_y).color
+      puts "No #{piece_at(to_x, to_y).color} on #{piece_at(to_x, to_y).color} violence!"
+    elsif piece_at(to_x, to_y).color == :white ? @captured_pieces_white << piece_at(to_x, to_y) : @captured_pieces_black << piece_at(to_x, to_y)
+    else return
+    end
+  end
+
+  def captured_pieces
+    captured_pieces_black.each do |piece| puts piece.symbol end
+    captured_pieces_white.each do |piece| puts piece.symbol end
   end
 
   def piece_at(x, y)
@@ -81,5 +98,7 @@ end
 # Example usage:
 board = Board.new
 board.display
-board.move_piece(1, 1, 4, 4)
+board.move_piece(1, 1, 7, 7)
 board.display
+board.captured_pieces
+
