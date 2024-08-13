@@ -12,7 +12,7 @@ class Board
   attr_reader :current_player, :columns_arr, :grid, :captured_pieces_black, :captured_pieces_white, :pieces
 
   def initialize
-    @current_player = :white
+    @current_player = :whiteg
     @columns_arr = [' a', ' b', ' c', ' d', ' e', ' f', ' g', ' h']
     @grid = Array.new(8) { Array.new(8) }
     @pieces = []
@@ -66,18 +66,63 @@ end
       return false
     end
 
-    if capture_piece?(from_x, from_y, to_x, to_y)
-      remove_piece(to_x, to_y)
-    elsif piece_at(to_x, to_y)
-      puts "Invalid move: destination is occupied by a friendly piece."
+    captured_piece = piece_at(to_x, to_y)
+    old_position = piece.position
+    make_temp_move(piece, to_x, to_y)
+
+
+    if king_in_check?(piece.color)
+      undo_temp_move(piece, old_position, captured_piece)
+      puts "Invalid move: This would put or leave your king in check."
       return false
     end
-    
-    @grid[from_x][from_y] = (from_x + from_y).even? ? LIGHT_SQUARE : DARK_SQUARE
+
+    undo_temp_move(piece, old_position, captured_piece)
+    perform_move(piece, to_x, to_y)
+
+    if king_in_check?(opposite_color(piece.color))
+      puts "Check!"
+    end
+    true
+  end
+
+  def king_position(color)
+    @pieces.find { |p| p.is_a?(King) && p.color == color }.position
+  end
+
+  def is_square_attacked?(x, y, attacker_color)
+    @pieces.any? do |piece|
+      piece.color == attacker_color && valid_move?(piece, *piece.position, x, y)
+    end
+  end
+
+  def king_in_check?(color)
+    king_x, king_y = king_position(color)
+    is_square_attacked?(king_x, king_y, opposite_color(color))
+  end
+
+  def make_temp_move(piece, to_x, to_y)
+    @grid[piece.position[0]][piece.position[1]] = (piece.position[0] + piece.position[1]).even? ? LIGHT_SQUARE : DARK_SQUARE
+    piece.position = [to_x, to_y]
+    @grid[to_x][to_y] = "#{piece.symbol}"
+  end
+
+  def undo_temp_move(piece, old_position, captured_piece)
+    current_x, current_y = piece.position
+    @grid[current_x][current_y] = captured_piece ? "#{captured_piece.symbol}" : ((current_x + current_y).even? ? LIGHT_SQUARE : DARK_SQUARE)
+    piece.position = old_position
+    @grid[old_position[0]][old_position[1]] = "#{piece.symbol}"
+  end
+
+  def perform_move(piece, to_x, to_y)
+    remove_piece(*piece.position)
+    remove_piece(to_x, to_y)  # Remove any piece at the destination (capture)
     piece.position = [to_x, to_y]
     place_piece(piece)
+  end
 
-    true
+  def opposite_color(color)
+    color == :white ? :black : :white
   end
   
   def set_current_player(player)

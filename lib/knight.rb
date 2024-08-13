@@ -1,5 +1,6 @@
 class Knight
-  attr_reader :position, :color, :symbol
+  attr_reader :color, :symbol
+  attr_accessor :position
   SYMBOLS = { white: "♘", black: "♞" }
   def initialize(x, y, color)
     @position = [x, y]
