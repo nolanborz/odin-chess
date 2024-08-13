@@ -50,6 +50,23 @@ end
     @pieces << piece
   end
 
+  def move_piece(from_x, from_y, to_x, to_y)
+    piece = piece_at(from_x, from_y)
+    return false unless piece
+
+    @grid[from_x][from_y] = (from_x + from_y).even? ? LIGHT_SQUARE : DARK_SQUARE
+
+    piece.position = [to_x, to_y]
+
+    place_piece(piece)
+
+    true
+  end
+
+  def piece_at(x, y)
+    @pieces.find { |piece| piece.position == [x, y] }
+  end
+
   def display
     puts "  #{@columns_arr.join(' ')}"
     @grid.reverse.each_with_index do |row, i|
@@ -63,4 +80,6 @@ end
 
 # Example usage:
 board = Board.new
+board.display
+board.move_piece(1, 1, 4, 4)
 board.display

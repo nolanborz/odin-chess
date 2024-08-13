@@ -1,5 +1,6 @@
 class Pawn
-  attr_reader :position, :color, :symbol
+  attr_reader :color, :symbol
+  attr_accessor :position
   SYMBOLS = { white: "♙", black: "♟"}
   attr_reader :position, :color
   def initialize(x, y, color)
