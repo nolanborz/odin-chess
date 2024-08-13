@@ -15,6 +15,7 @@ class Board
     @current_player = nil
     @columns_arr = [' a', ' b', ' c', ' d', ' e', ' f', ' g', ' h']
     @grid = Array.new(8) { Array.new(8) }
+    @pieces = []
     setup_board
   end
 
@@ -46,6 +47,7 @@ end
     x, y = piece.position
     background_color = (x + y).even? ? 47 : 100 # 47 for light, 100 for dark
     @grid[x][y] = "\e[#{background_color}m #{piece.symbol} \e[0m"
+    @pieces << piece
   end
 
   def display
