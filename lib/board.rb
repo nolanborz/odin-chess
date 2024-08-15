@@ -13,7 +13,7 @@ class Board
 
   def initialize
     @current_player = :whiteg
-    @columns_arr = [' a', ' b', ' c', ' d', ' e', ' f', ' g', ' h']
+    @columns_arr = [' a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
     @grid = Array.new(8) { Array.new(8) }
     @pieces = []
     @captured_pieces_white = []
@@ -22,38 +22,38 @@ class Board
   end
 
   def setup_board
-    8.times do |row|
-      8.times do |col|
-        @grid[row][col] = (row + col).even? ? LIGHT_SQUARE : DARK_SQUARE
-      end
-    end
+    setup_pawns
+    setup_back_rank(:white)
+    setup_back_rank(:black)
+  end
 
+  def setup_pawns
     8.times do |col|
       place_piece(Pawn.new(1, col, :white))
       place_piece(Pawn.new(6, col, :black))
     end
-    [:white, :black].each do |color|
-      back_rank = color == :white ? 0 : 7
-      place_piece(Rook.new(back_rank, 0, color))
-      place_piece(Knight.new(back_rank, 1, color))
-      place_piece(Bishop.new(back_rank, 2, color))
-      place_piece(Queen.new(back_rank, 3, color))
-      place_piece(King.new(back_rank, 4, color))
-      place_piece(Bishop.new(back_rank, 5, color))
-      place_piece(Knight.new(back_rank, 6, color))
-      place_piece(Rook.new(back_rank, 7, color))
   end
-end
+
+  def setup_back_rank(color)
+    back_rank = color == :white ? 0 : 7
+    place_piece(Rook.new(back_rank, 0, color))
+    place_piece(Knight.new(back_rank, 1, color))
+    place_piece(Bishop.new(back_rank, 2, color))
+    place_piece(Queen.new(back_rank, 3, color))
+    place_piece(King.new(back_rank, 4, color))
+    place_piece(Bishop.new(back_rank, 5, color))
+    place_piece(Knight.new(back_rank, 6, color))
+    place_piece(Rook.new(back_rank, 7, color))
+  end
 
   def place_piece(piece)
     x, y = piece.position
-    background_color = (x + y).even? ? 47 : 100 # 47 for light, 100 for dark
-    @grid[x][y] = "\e[#{background_color}m #{piece.symbol} \e[0m"
+    @grid[x][y] = piece
     @pieces << piece
   end
 
   def move_piece(from_x, from_y, to_x, to_y)
-    piece = piece_at(from_x, from_y)
+    piece = @grid[from_x][from_y]
     return false unless piece
 
     if piece.color != @current_player
@@ -66,10 +66,9 @@ end
       return false
     end
 
-    captured_piece = piece_at(to_x, to_y)
+    captured_piece = @grid[to_x][to_y]
     old_position = piece.position
     make_temp_move(piece, to_x, to_y)
-
 
     if king_in_check?(piece.color)
       undo_temp_move(piece, old_position, captured_piece)
@@ -97,28 +96,40 @@ end
   end
 
   def king_in_check?(color)
-    king_x, king_y = king_position(color)
-    is_square_attacked?(king_x, king_y, opposite_color(color))
+    king_pos = find_king(color)
+    opposite_color_pieces.any? do |piece|
+      valid_move?(piece, *piece.position, *king_pos, check_only: true)
+    end
   end
 
   def make_temp_move(piece, to_x, to_y)
-    @grid[piece.position[0]][piece.position[1]] = (piece.position[0] + piece.position[1]).even? ? LIGHT_SQUARE : DARK_SQUARE
+    @grid[piece.position[0]][piece.position[1]] = nil
+    @grid[to_x][to_y] = piece
     piece.position = [to_x, to_y]
-    @grid[to_x][to_y] = "#{piece.symbol}"
   end
 
   def undo_temp_move(piece, old_position, captured_piece)
     current_x, current_y = piece.position
-    @grid[current_x][current_y] = captured_piece ? "#{captured_piece.symbol}" : ((current_x + current_y).even? ? LIGHT_SQUARE : DARK_SQUARE)
+    @grid[current_x][current_y] = captured_piece
+    @grid[old_position[0]][old_position[1]] = piece
     piece.position = old_position
-    @grid[old_position[0]][old_position[1]] = "#{piece.symbol}"
   end
 
   def perform_move(piece, to_x, to_y)
-    remove_piece(*piece.position)
-    remove_piece(to_x, to_y)  # Remove any piece at the destination (capture)
+    from_x, from_y = piece.position
+    @grid[from_x][from_y] = nil
+    captured_piece = @grid[to_x][to_y]
+    capture_piece(captured_piece) if captured_piece
+    @grid[to_x][to_y] = piece
     piece.position = [to_x, to_y]
-    place_piece(piece)
+  end
+
+  def find_king(color)
+    @grid.each_with_index do |row, x|
+      row.each_with_index do |piece, y|
+        return [x, y] if piece.is_a?(King) && piece.color == color
+      end
+    end
   end
 
   def opposite_color(color)
@@ -129,7 +140,13 @@ end
     @current_player = player
   end
 
-  def valid_move?(piece, from_x, from_y, to_x, to_y)
+  def opposite_color_pieces
+    @pieces.select { |p| p.color != @current_player }
+  end
+
+  def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false)
+    return false if !check_only && @grid[to_x][to_y] && @grid[to_x][to_y].color == piece.color
+    
     case piece
     when Pawn
       valid_pawn_move?(piece, from_x, from_y, to_x, to_y)
@@ -198,25 +215,13 @@ end
     true
   end
 
-  def capture_piece?(from_x, from_y, to_x, to_y)
-    attacker = piece_at(from_x, from_y)
-    defender = piece_at(to_x, to_y)
-    
-    return false unless defender
-
-    if attacker.color == defender.color
-      puts "Invalid move: cannot capture your own piece."
-      return false
-    end
-
-    if defender.color == :white
-      @captured_pieces_white << defender
+  def capture_piece(piece)
+    @pieces.delete(piece)
+    if piece.color == :white
+      @captured_pieces_white << piece
     else
-      @captured_pieces_black << defender
+      @captured_pieces_black << piece
     end
-
-    puts "#{attacker.color.capitalize} #{attacker.class} captures #{defender.color.capitalize} #{defender.class}!"
-    true
   end
 
   def remove_piece(x, y)
@@ -235,13 +240,21 @@ end
   end
 
   def display
-    puts "  #{@columns_arr.join(' ')}"
-    @grid.reverse.each_with_index do |row, i|
-      print "#{8 - i} "
-      row.each { |cell| print cell }
-      puts " #{8 - i}"
+    puts "  #{@columns_arr.join('  ')}"
+    8.downto(1) do |row|
+      print "#{row} "
+      8.times do |col|
+        piece = @grid[row - 1][col]
+        background_color = (row + col).even? ? 47 : 100
+        if piece
+          print "\e[#{background_color}m #{piece.symbol} \e[0m"
+        else
+          print (row + col).even? ? LIGHT_SQUARE : DARK_SQUARE
+        end
+      end
+      puts " #{row}"
     end
-    puts "  #{@columns_arr.join(' ')}"
+    puts "  #{@columns_arr.join('  ')}"
   end
 end
 
