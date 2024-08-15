@@ -61,28 +61,34 @@ class Board
       return false
     end
 
-    unless valid_move?(piece, from_x, from_y, to_x, to_y)
+    if king_in_check?(piece.color) && !move_resolves_check?(piece, from_x, from_y, to_x, to_y)
+      puts "Invalid move: You must address the check on your king."
+      return false
+    end
+
+    if valid_move?(piece, from_x, from_y, to_x, to_y)
+      perform_move(piece, to_x, to_y)
+      puts "Move performed successfully"
+
+      if king_in_check?(opposite_color(piece.color))
+        puts "Check!"
+      end
+      true
+    else
       puts "Invalid move for #{piece.color} #{piece.class}"
-      return false
+      false
     end
+  end
 
-    captured_piece = @grid[to_x][to_y]
+  def move_resolves_check?(piece, from_x, from_y, to_x, to_y)
+    target_piece = @grid[to_x][to_y]
     old_position = piece.position
+
     make_temp_move(piece, to_x, to_y)
+    check_resolved = !king_in_check?(piece.color)
+    undo_temp_move(piece, old_position, target_piece)
 
-    if king_in_check?(piece.color)
-      undo_temp_move(piece, old_position, captured_piece)
-      puts "Invalid move: This would put or leave your king in check."
-      return false
-    end
-
-    undo_temp_move(piece, old_position, captured_piece)
-    perform_move(piece, to_x, to_y)
-
-    if king_in_check?(opposite_color(piece.color))
-      puts "Check!"
-    end
-    true
+    check_resolved
   end
 
   def king_position(color)
@@ -97,9 +103,24 @@ class Board
 
   def king_in_check?(color)
     king_pos = find_king(color)
-    opposite_color_pieces.any? do |piece|
-      valid_move?(piece, *piece.position, *king_pos, check_only: true)
+    puts "Checking if #{color} king at #{king_pos} is in check"
+    is_in_check = opposite_color_pieces.any? do |piece|
+      if valid_move?(piece, *piece.position, *king_pos, check_only: true)
+        # Check if there's a piece at the king's position that would be captured
+        target_piece = @grid[king_pos[0]][king_pos[1]]
+        if target_piece && target_piece.color != piece.color
+          puts "#{piece.class} at #{piece.position} could capture the king, but the king's square is occupied by a #{target_piece.class}"
+          false
+        else
+          puts "#{piece.class} at #{piece.position} is putting the king in check"
+          true
+        end
+      else
+        false
+      end
     end
+    puts "#{color} king is #{is_in_check ? '' : 'not '}in check"
+    is_in_check
   end
 
   def make_temp_move(piece, to_x, to_y)
@@ -145,9 +166,10 @@ class Board
   end
 
   def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false)
+    puts "Checking if move is valid for #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
     return false if !check_only && @grid[to_x][to_y] && @grid[to_x][to_y].color == piece.color
     
-    case piece
+    move_valid = case piece
     when Pawn
       valid_pawn_move?(piece, from_x, from_y, to_x, to_y)
     when Rook
@@ -163,6 +185,7 @@ class Board
     else
       false
     end
+    move_valid
   end
 
   def valid_pawn_move?(pawn, from_x, from_y, to_x, to_y)
@@ -256,6 +279,31 @@ class Board
     end
     puts "  #{@columns_arr.join('  ')}"
   end
+
+  def is_checkmate?(color)
+    return false unless king_in_check?(color)
+    
+    @pieces.select { |p| p.color == color }.none? do |piece|
+      from_x, from_y = piece.position
+      (0..7).any? do |to_x|
+        (0..7).any? do |to_y|
+          next if [from_x, from_y] == [to_x, to_y]
+          
+          if valid_move?(piece, from_x, from_y, to_x, to_y)
+            target_piece = @grid[to_x][to_y]
+            
+            make_temp_move(piece, to_x, to_y)
+            king_safe = !king_in_check?(color)
+            undo_temp_move(piece, old_position, target_piece)
+            
+            return false if king_safe
+          end
+        end
+      end
+    end
+    true
+  end
+
 end
 
 # Example usage:
