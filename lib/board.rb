@@ -52,6 +52,10 @@ class Board
     @pieces << piece
   end
 
+  def set_current_player(player)
+    @current_player = player
+  end
+
   def move_piece(from_x, from_y, to_x, to_y)
     piece = @grid[from_x][from_y]
     return false unless piece
@@ -101,28 +105,6 @@ class Board
     end
   end
 
-  def king_in_check?(color)
-    king_pos = find_king(color)
-    puts "Checking if #{color} king at #{king_pos} is in check"
-    is_in_check = opposite_color_pieces.any? do |piece|
-      if valid_move?(piece, *piece.position, *king_pos, check_only: true)
-        # Check if there's a piece at the king's position that would be captured
-        target_piece = @grid[king_pos[0]][king_pos[1]]
-        if target_piece && target_piece.color != piece.color
-          puts "#{piece.class} at #{piece.position} could capture the king, but the king's square is occupied by a #{target_piece.class}"
-          false
-        else
-          puts "#{piece.class} at #{piece.position} is putting the king in check"
-          true
-        end
-      else
-        false
-      end
-    end
-    puts "#{color} king is #{is_in_check ? '' : 'not '}in check"
-    is_in_check
-  end
-
   def make_temp_move(piece, to_x, to_y)
     @grid[piece.position[0]][piece.position[1]] = nil
     @grid[to_x][to_y] = piece
@@ -153,42 +135,58 @@ class Board
     end
   end
 
+  def king_in_check?(color)
+    king_pos = find_king(color)
+    puts "Checking if #{color} king at #{king_pos} is in check"
+    
+    is_in_check = opposite_color_pieces(color).any? do |piece|
+      puts "Checking if #{piece.class} at #{piece.position} can attack king"
+      if valid_move?(piece, *piece.position, *king_pos, check_only: true)
+        puts "#{piece.class} at #{piece.position} can reach the king"
+        true
+      else
+        puts "#{piece.class} at #{piece.position} cannot reach the king"
+        false
+      end
+    end
+    
+    puts "#{color} king is #{is_in_check ? '' : 'not '}in check"
+    is_in_check
+  end
+
   def opposite_color(color)
     color == :white ? :black : :white
   end
-  
-  def set_current_player(player)
-    @current_player = player
-  end
 
-  def opposite_color_pieces
-    @pieces.select { |p| p.color != @current_player }
+  def opposite_color_pieces(color)
+    @pieces.select { |p| p.color != color }
   end
 
   def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false)
-    puts "Checking if move is valid for #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
     return false if !check_only && @grid[to_x][to_y] && @grid[to_x][to_y].color == piece.color
     
     move_valid = case piece
     when Pawn
-      valid_pawn_move?(piece, from_x, from_y, to_x, to_y)
+      valid_pawn_move?(piece, from_x, from_y, to_x, to_y, check_only: check_only)
     when Rook
-      valid_rook_move?(from_x, from_y, to_x, to_y)
+      valid_rook_move?(from_x, from_y, to_x, to_y, check_only: check_only)
     when Knight
-      valid_knight_move?(from_x, from_y, to_x, to_y)
+      valid_knight_move?(from_x, from_y, to_x, to_y, check_only: check_only)
     when Bishop
-      valid_bishop_move?(from_x, from_y, to_x, to_y)
+      valid_bishop_move?(from_x, from_y, to_x, to_y, check_only: check_only)
     when Queen
-      valid_queen_move?(from_x, from_y, to_x, to_y)
+      valid_queen_move?(from_x, from_y, to_x, to_y, check_only: check_only)
     when King
-      valid_king_move?(from_x, from_y, to_x, to_y)
+      valid_king_move?(from_x, from_y, to_x, to_y, check_only: check_only)
     else
       false
     end
+  
+    puts "Move for #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{move_valid ? 'valid' : 'invalid'}"
     move_valid
   end
 
-  def valid_pawn_move?(pawn, from_x, from_y, to_x, to_y)
+  def valid_pawn_move?(pawn, from_x, from_y, to_x, to_y, check_only: false)
     direction = pawn.color == :white ? 1 : -1
     if from_y == to_y # Moving forward
       if from_x + direction == to_x
@@ -197,30 +195,34 @@ class Board
         return piece_at(from_x + direction, from_y).nil? && piece_at(to_x, to_y).nil?
       end
     elsif (from_y - to_y).abs == 1 && from_x + direction == to_x # Capturing diagonally
-      return piece_at(to_x, to_y) && piece_at(to_x, to_y).color != pawn.color
+      return check_only || (piece_at(to_x, to_y) && piece_at(to_x, to_y).color != pawn.color)
     end
     false
   end
 
-  def valid_rook_move?(from_x, from_y, to_x, to_y)
+  def valid_rook_move?(from_x, from_y, to_x, to_y, check_only: false)
     return false unless from_x == to_x || from_y == to_y
     path_clear?(from_x, from_y, to_x, to_y)
   end
 
-  def valid_knight_move?(from_x, from_y, to_x, to_y)
+  def valid_knight_move?(from_x, from_y, to_x, to_y, check_only: false)
     (from_x - to_x).abs * (from_y - to_y).abs == 2
   end
 
-  def valid_bishop_move?(from_x, from_y, to_x, to_y)
+  def valid_bishop_move?(from_x, from_y, to_x, to_y, check_only: false)
     return false unless (from_x - to_x).abs == (from_y - to_y).abs
     path_clear?(from_x, from_y, to_x, to_y)
   end
 
-  def valid_queen_move?(from_x, from_y, to_x, to_y)
-    valid_rook_move?(from_x, from_y, to_x, to_y) || valid_bishop_move?(from_x, from_y, to_x, to_y)
+  def valid_queen_move?(from_x, from_y, to_x, to_y, check_only: false)
+    dx = (to_x - from_x).abs
+    dy = (to_y - from_y).abs
+    is_valid = (from_x == to_x || from_y == to_y || dx == dy) && path_clear?(from_x, from_y, to_x, to_y)
+    puts "Queen move from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{is_valid ? 'valid' : 'invalid'}. dx: #{dx}, dy: #{dy}"
+    is_valid
   end
 
-  def valid_king_move?(from_x, from_y, to_x, to_y)
+  def valid_king_move?(from_x, from_y, to_x, to_y, check_only: false)
     (from_x - to_x).abs <= 1 && (from_y - to_y).abs <= 1
   end
 
@@ -230,11 +232,15 @@ class Board
     x, y = from_x + dx, from_y + dy
 
     while x != to_x || y != to_y
-      return false if piece_at(x, y)
+      if piece_at(x, y)
+        puts "Path blocked at [#{x}, #{y}]"
+        return false
+      end
       x += dx
       y += dy
     end
 
+    puts "Path is clear from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
     true
   end
 
