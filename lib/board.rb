@@ -59,21 +59,21 @@ class Board
   def move_piece(from_x, from_y, to_x, to_y)
     piece = @grid[from_x][from_y]
     return false unless piece
-
+  
     if piece.color != @current_player
       puts "It's not #{piece.color}'s turn."
       return false
     end
-
-    if king_in_check?(piece.color) && !move_resolves_check?(piece, from_x, from_y, to_x, to_y)
-      puts "Invalid move: You must address the check on your king."
+  
+    if move_results_in_check?(from_x, from_y, to_x, to_y)
+      puts "Invalid move: This move would put or leave your king in check."
       return false
     end
-
+  
     if valid_move?(piece, from_x, from_y, to_x, to_y)
       perform_move(piece, to_x, to_y)
       puts "Move performed successfully"
-
+  
       if king_in_check?(opposite_color(piece.color))
         puts "Check!"
       end
@@ -135,11 +135,12 @@ class Board
     end
   end
 
-  def king_in_check?(color)
+  def king_in_check?(color, ignore_piece: nil)
     king_pos = find_king(color)
     puts "Checking if #{color} king at #{king_pos} is in check"
     
     is_in_check = opposite_color_pieces(color).any? do |piece|
+      next if piece == ignore_piece
       puts "Checking if #{piece.class} at #{piece.position} can attack king"
       if valid_move?(piece, *piece.position, *king_pos, check_only: true)
         puts "#{piece.class} at #{piece.position} can reach the king"
@@ -162,7 +163,7 @@ class Board
     @pieces.select { |p| p.color != color }
   end
 
-  def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false)
+  def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false, ignore_piece: nil)
     return false if !check_only && @grid[to_x][to_y] && @grid[to_x][to_y].color == piece.color
     
     move_valid = case piece
@@ -308,6 +309,29 @@ class Board
       end
     end
     true
+  end
+
+  def move_results_in_check?(from_x, from_y, to_x, to_y)
+    piece = @grid[from_x][from_y]
+    return false unless piece
+  
+    # Store the current state
+    old_to_piece = @grid[to_x][to_y]
+    
+    # Simulate the move
+    @grid[to_x][to_y] = piece
+    @grid[from_x][from_y] = nil
+    piece.position = [to_x, to_y]
+  
+    # Check if the move results in check
+    result = king_in_check?(piece.color)
+  
+    # Restore the original state
+    @grid[from_x][from_y] = piece
+    @grid[to_x][to_y] = old_to_piece
+    piece.position = [from_x, from_y]
+  
+    result
   end
 
 end
