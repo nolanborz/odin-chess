@@ -18,6 +18,10 @@ class Board
     @pieces = []
     @captured_pieces_white = []
     @captured_pieces_black = []
+    @white_castle_queenside = false
+    @white_castle_kingside = false
+    @black_castle_queenside = false
+    @black_castle_kingside = false
     setup_board
   end
 
@@ -333,6 +337,8 @@ class Board
   
     result
   end
+
+
 
 end
 

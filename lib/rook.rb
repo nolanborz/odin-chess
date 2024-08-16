@@ -4,6 +4,7 @@ class Rook
   SYMBOLS = { white: "♖", black: "♜"}
   attr_reader :position, :color
   def initialize(x, y, color)
+    @name = 'rook'
     @position = [x, y]
     @color = color
     @symbol = SYMBOLS[color]
