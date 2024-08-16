@@ -12,7 +12,7 @@ class Board
   attr_reader :current_player, :columns_arr, :grid, :captured_pieces_black, :captured_pieces_white, :pieces
 
   def initialize
-    @current_player = :whiteg
+    @current_player = :white
     @columns_arr = [' a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
     @grid = Array.new(8) { Array.new(8) }
     @pieces = []
@@ -63,10 +63,21 @@ class Board
   def move_piece(from_x, from_y, to_x, to_y)
     piece = @grid[from_x][from_y]
     return false unless piece
-  
+
     if piece.color != @current_player
       puts "It's not #{piece.color}'s turn."
       return false
+    end
+
+    if piece.is_a?(King) && ((to_y - from_y).abs == 2)
+      side = to_y > from_y ? :kingside : :queenside
+      if can_castle?(piece.color, side)
+        perform_castling(piece.color, side)
+        return true
+      else
+        puts "Castling is not allowed at this time"
+        return false
+      end
     end
   
     if move_results_in_check?(from_x, from_y, to_x, to_y)
@@ -105,7 +116,7 @@ class Board
 
   def is_square_attacked?(x, y, attacker_color)
     @pieces.any? do |piece|
-      piece.color == attacker_color && valid_move?(piece, *piece.position, x, y)
+      piece.color == attacker_color && valid_move?(piece, *piece.position, x, y, check_only: true)
     end
   end
 
@@ -129,34 +140,21 @@ class Board
     capture_piece(captured_piece) if captured_piece
     @grid[to_x][to_y] = piece
     piece.position = [to_x, to_y]
+    piece.mark_moved
   end
 
   def find_king(color)
-    @grid.each_with_index do |row, x|
-      row.each_with_index do |piece, y|
-        return [x, y] if piece.is_a?(King) && piece.color == color
-      end
-    end
+    @pieces.find { |piece| piece.is_a?(King) && piece.color == color }&.position
   end
 
-  def king_in_check?(color, ignore_piece: nil)
+  def king_in_check?(color, ignore_move: nil)
     king_pos = find_king(color)
-    puts "Checking if #{color} king at #{king_pos} is in check"
-    
-    is_in_check = opposite_color_pieces(color).any? do |piece|
-      next if piece == ignore_piece
-      puts "Checking if #{piece.class} at #{piece.position} can attack king"
-      if valid_move?(piece, *piece.position, *king_pos, check_only: true)
-        puts "#{piece.class} at #{piece.position} can reach the king"
-        true
-      else
-        puts "#{piece.class} at #{piece.position} cannot reach the king"
-        false
-      end
+    return false unless king_pos # If king is not found, assume it's not in check
+
+    opposite_color_pieces(color).any? do |piece|
+      next if piece.position == ignore_move
+      valid_move?(piece, *piece.position, *king_pos, check_only: true, ignore_castling: true)
     end
-    
-    puts "#{color} king is #{is_in_check ? '' : 'not '}in check"
-    is_in_check
   end
 
   def opposite_color(color)
@@ -167,7 +165,7 @@ class Board
     @pieces.select { |p| p.color != color }
   end
 
-  def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false, ignore_piece: nil)
+  def valid_move?(piece, from_x, from_y, to_x, to_y, check_only: false, ignore_castling: false)
     return false if !check_only && @grid[to_x][to_y] && @grid[to_x][to_y].color == piece.color
     
     move_valid = case piece
@@ -182,13 +180,17 @@ class Board
     when Queen
       valid_queen_move?(from_x, from_y, to_x, to_y, check_only: check_only)
     when King
-      valid_king_move?(from_x, from_y, to_x, to_y, check_only: check_only)
+      valid_king_move?(from_x, from_y, to_x, to_y, check_only: check_only, ignore_castling: ignore_castling)
     else
       false
     end
   
-    puts "Move for #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{move_valid ? 'valid' : 'invalid'}"
-    move_valid
+    #puts "Move for #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{move_valid ? 'valid' : 'invalid'}"
+    if move_valid && !check_only
+      !move_results_in_check?(from_x, from_y, to_x, to_y)
+    else
+      move_valid
+    end
   end
 
   def valid_pawn_move?(pawn, from_x, from_y, to_x, to_y, check_only: false)
@@ -223,12 +225,23 @@ class Board
     dx = (to_x - from_x).abs
     dy = (to_y - from_y).abs
     is_valid = (from_x == to_x || from_y == to_y || dx == dy) && path_clear?(from_x, from_y, to_x, to_y)
-    puts "Queen move from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{is_valid ? 'valid' : 'invalid'}. dx: #{dx}, dy: #{dy}"
+    #puts "Queen move from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{is_valid ? 'valid' : 'invalid'}. dx: #{dx}, dy: #{dy}"
     is_valid
   end
 
-  def valid_king_move?(from_x, from_y, to_x, to_y, check_only: false)
-    (from_x - to_x).abs <= 1 && (from_y - to_y).abs <= 1
+  def valid_king_move?(from_x, from_y, to_x, to_y, check_only: false, ignore_castling: false)
+    dx = (to_x - from_x).abs
+    dy = (to_y - from_y).abs
+
+    return true if dx <= 1 && dy <= 1 # Normal king move
+
+    if !ignore_castling && dx == 0 && dy == 2 # Potential castling move
+      color = piece_at(from_x, from_y).color
+      side = to_y > from_y ? :kingside : :queenside
+      return can_castle?(color, side, check_only: check_only)
+    end
+
+    false
   end
 
   def path_clear?(from_x, from_y, to_x, to_y)
@@ -238,14 +251,14 @@ class Board
 
     while x != to_x || y != to_y
       if piece_at(x, y)
-        puts "Path blocked at [#{x}, #{y}]"
+        #puts "Path blocked at [#{x}, #{y}]"
         return false
       end
       x += dx
       y += dy
     end
 
-    puts "Path is clear from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
+    #puts "Path is clear from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
     true
   end
 
@@ -270,7 +283,8 @@ class Board
   end
 
   def piece_at(x, y)
-    @pieces.find { |piece| piece.position == [x, y] }
+    return nil if x < 0 || x >= 8 || y < 0 || y >= 8
+    @grid[x][y]
   end
 
   def display
@@ -325,17 +339,81 @@ class Board
     # Simulate the move
     @grid[to_x][to_y] = piece
     @grid[from_x][from_y] = nil
+    old_position = piece.position
     piece.position = [to_x, to_y]
   
     # Check if the move results in check
-    result = king_in_check?(piece.color)
+    result = king_in_check?(piece.color, ignore_move: [to_x, to_y])
   
     # Restore the original state
     @grid[from_x][from_y] = piece
     @grid[to_x][to_y] = old_to_piece
-    piece.position = [from_x, from_y]
+    piece.position = old_position
   
     result
+  end
+
+  def spaces_empty?(start_pos, end_pos)
+    x = start_pos[0]
+    ((start_pos[1] + 1)...end_pos[1]).all? { |y| piece_at(x, y).nil? }
+  end
+
+
+  def can_castle?(color, side, check_only: false)
+    king = @pieces.find { |piece| piece.is_a?(King) && piece.color == color }
+    rook = find_castling_rook(color, side)
+  
+    return false if king.nil? || rook.nil? || king.has_moved? || rook.has_moved?
+  
+    rank = color == :white ? 0 : 7
+    king_file = 4
+    rook_file = side == :kingside ? 7 : 0
+  
+    # Check if spaces between king and rook are empty
+    return false unless spaces_empty?([rank, king_file], [rank, rook_file])
+  
+    # Check if king is in check
+    return false if king_in_check?(color, ignore_move: [rank, king_file])
+  
+    # Check if king passes through attacked square
+    intermediate_file = side == :kingside ? 5 : 3
+    !is_square_attacked?(rank, intermediate_file, opposite_color(color))
+  end
+
+  def find_castling_rook(color, side)
+    rank = color == :white ? 0 : 7
+    file = side == :kingside ? 7 : 0
+    piece = piece_at(rank, file)
+    piece.is_a?(Rook) && piece.color == color ? piece : nil
+  end
+
+  def perform_castling(color, side)
+    rank = color == :white ? 0 : 7
+    king = piece_at(rank, 4)
+    
+    if side == :kingside
+      rook = piece_at(rank, 7)
+      king_to_file = 6
+      rook_to_file = 5
+    else # queenside
+      rook = piece_at(rank, 0)
+      king_to_file = 2
+      rook_to_file = 3
+    end
+  
+    # Move king
+    @grid[rank][4] = nil
+    @grid[rank][king_to_file] = king
+    king.position = [rank, king_to_file]
+    king.mark_moved
+  
+    # Move rook
+    @grid[rank][rook.position[1]] = nil
+    @grid[rank][rook_to_file] = rook
+    rook.position = [rank, rook_to_file]
+    rook.mark_moved
+  
+    puts "Castling performed for #{color} on #{side} side"
   end
 
 
