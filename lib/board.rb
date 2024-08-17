@@ -97,6 +97,7 @@ class Board
       puts "Invalid move for #{piece.color} #{piece.class}"
       false
     end
+
   end
 
   def move_resolves_check?(piece, from_x, from_y, to_x, to_y)
@@ -141,6 +142,9 @@ class Board
     @grid[to_x][to_y] = piece
     piece.position = [to_x, to_y]
     piece.mark_moved
+    if piece.is_a?(Pawn) && (to_x == 7 || to_x == 0)
+      promote_piece(piece, to_x)
+    end
   end
 
   def find_king(color)
@@ -416,13 +420,43 @@ class Board
     puts "Castling performed for #{color} on #{side} side"
   end
 
+  def get_promotion_class(piece_name)
+    case piece_name.downcase
+    when 'queen' then Queen
+    when 'rook' then Rook
+    when 'bishop' then Bishop
+    when 'knight' then Knight
+    else
+      raise ArgumentError, "Invalid promotion piece: #{piece_name}"
+    end
+  end
 
+  def promotion_input
+    puts "Which piece would you like to promote to?"
+    piece_arr = ['Queen', 'Rook', 'Bishop', 'Knight']
+    loop do
+      promotion = gets.chomp.capitalize
+      return promotion if piece_arr.include?(promotion)
+      puts "Please enter one of the following: #{piece_arr.join(', ')}"
+    end
+  end
+
+  def promote_piece(piece, to_x)
+    promotion_class = get_promotion_class(promotion_input)
+    promoted_piece = promotion_class.new(piece.position[0], piece.position[1], piece.color)
+    remove_piece(piece.position[0], piece.position[1])
+    place_piece(promoted_piece)
+    puts "Pawn promoted to #{promoted_piece.class} at position #{promoted_piece.position}"
+    check_game_state_after_promotion(promoted_piece)
+  end
+
+  def check_game_state_after_promotion(promoted_piece)
+    if king_in_check?(opposite_color(promoted_piece.color))
+      puts "Check!"
+      if is_checkmate?(opposite_color(promoted_piece.color))
+        puts "Checkmate!"
+      end
+    end
+  end
 
 end
-
-# Example usage:
-#board = Board.new
-#board.display
-#board.move_piece(1, 1, 7, 7)
-#board.display
-#board.captured_pieces
