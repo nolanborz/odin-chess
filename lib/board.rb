@@ -62,13 +62,18 @@ class Board
 
   def move_piece(from_x, from_y, to_x, to_y)
     piece = @grid[from_x][from_y]
-    return false unless piece
-
+    puts "Attempting to move #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
+  
+    unless piece
+      puts "No piece at [#{from_x}, #{from_y}]"
+      return false
+    end
+  
     if piece.color != @current_player
       puts "It's not #{piece.color}'s turn."
       return false
     end
-
+  
     if piece.is_a?(King) && ((to_y - from_y).abs == 2)
       side = to_y > from_y ? :kingside : :queenside
       if can_castle?(piece.color, side)
@@ -89,15 +94,19 @@ class Board
       perform_move(piece, to_x, to_y)
       puts "Move performed successfully"
   
-      if king_in_check?(opposite_color(piece.color))
+      opponent_color = opposite_color(piece.color)
+      if king_in_check?(opponent_color)
         puts "Check!"
+        if is_checkmate?(opponent_color)
+          puts "Checkmate! #{opponent_color.capitalize} loses."
+          return true
+        end
       end
       true
     else
       puts "Invalid move for #{piece.color} #{piece.class}"
       false
     end
-
   end
 
   def move_resolves_check?(piece, from_x, from_y, to_x, to_y)
@@ -310,27 +319,95 @@ class Board
   end
 
   def is_checkmate?(color)
-    return false unless king_in_check?(color)
+    puts "Checking checkmate for #{color}"
+    unless king_in_check?(color)
+      puts "#{color} king is not in check, so it's not checkmate"
+      return false
+    end
     
-    @pieces.select { |p| p.color == color }.none? do |piece|
-      from_x, from_y = piece.position
-      (0..7).any? do |to_x|
-        (0..7).any? do |to_y|
-          next if [from_x, from_y] == [to_x, to_y]
-          
-          if valid_move?(piece, from_x, from_y, to_x, to_y)
-            target_piece = @grid[to_x][to_y]
-            
-            make_temp_move(piece, to_x, to_y)
-            king_safe = !king_in_check?(color)
-            undo_temp_move(piece, old_position, target_piece)
-            
-            return false if king_safe
+    king = @pieces.find { |p| p.is_a?(King) && p.color == color }
+    king_x, king_y = king.position
+    puts "King position: [#{king_x}, #{king_y}]"
+  
+    # Check if the king can move to any adjacent square
+    [-1, 0, 1].each do |dx|
+      [-1, 0, 1].each do |dy|
+        next if dx == 0 && dy == 0
+        new_x, new_y = king_x + dx, king_y + dy
+        if valid_position?(new_x, new_y) && 
+           valid_move?(king, king_x, king_y, new_x, new_y) &&
+           !move_results_in_check?(king_x, king_y, new_x, new_y)
+          puts "King can move to [#{new_x}, #{new_y}], so it's not checkmate"
+          return false
+        end
+      end
+    end
+
+  
+    # Check if any piece can block the check or capture the attacking piece
+    attacking_pieces = find_attacking_pieces(color)
+    puts "Attacking pieces: #{attacking_pieces.map { |p| "#{p.class} at #{p.position}" }.join(', ')}"
+    if can_block_or_capture?(color, attacking_pieces)
+      puts "A piece can block or capture, so it's not checkmate"
+      return false
+    end
+  
+    puts "It's checkmate for #{color}"
+    true
+  end
+
+  def valid_position?(x, y)
+    x.between?(0, 7) && y.between?(0, 7)
+  end
+
+  def can_block_or_capture?(color, attacking_pieces)
+    @pieces.select { |p| p.color == color }.each do |piece|
+      piece_x, piece_y = piece.position
+      (0..7).each do |to_x|
+        (0..7).each do |to_y|
+          next if [piece_x, piece_y] == [to_x, to_y]
+          if valid_move?(piece, piece_x, piece_y, to_x, to_y) &&
+             !move_results_in_check?(piece_x, piece_y, to_x, to_y) &&
+             (attacking_pieces.any? { |ap| ap.position == [to_x, to_y] } ||
+              is_blocking_move?(piece, to_x, to_y, attacking_pieces))
+            puts "#{piece.class} at [#{piece_x}, #{piece_y}] can move to [#{to_x}, #{to_y}] to block or capture"
+            return true
           end
         end
       end
     end
-    true
+    false
+  end
+
+  def is_blocking_move?(piece, to_x, to_y, attacking_pieces)
+    king = @pieces.find { |p| p.is_a?(King) && p.color == piece.color }
+    attacking_pieces.any? do |ap|
+      between_positions(ap.position, king.position).include?([to_x, to_y])
+    end
+  end
+
+  def between_positions(pos1, pos2)
+    x1, y1 = pos1
+    x2, y2 = pos2
+    dx = (x2 - x1).nonzero? ? (x2 - x1) / (x2 - x1).abs : 0
+    dy = (y2 - y1).nonzero? ? (y2 - y1) / (y2 - y1).abs : 0
+    positions = []
+    x, y = x1 + dx, y1 + dy
+    while [x, y] != [x2, y2]
+      positions << [x, y]
+      x, y = x + dx, y + dy
+    end
+    positions
+  end
+
+  def find_attacking_pieces(color)
+    king = @pieces.find { |p| p.is_a?(King) && p.color == color }
+    king_x, king_y = king.position
+    
+    @pieces.select do |piece|
+      piece.color != color &&
+      valid_move?(piece, *piece.position, king_x, king_y)
+    end
   end
 
   def move_results_in_check?(from_x, from_y, to_x, to_y)
@@ -457,6 +534,25 @@ class Board
         puts "Checkmate!"
       end
     end
+  end
+
+  def is_stalemate?(color)
+    return false if king_in_check?(color)
+    
+    @pieces.select { |p| p.color == color }.each do |piece|
+      piece_x, piece_y = piece.position
+      (0..7).each do |to_x|
+        (0..7).each do |to_y|
+          next if [piece_x, piece_y] == [to_x, to_y]
+          if valid_move?(piece, piece_x, piece_y, to_x, to_y) &&
+             !move_results_in_check?(piece_x, piece_y, to_x, to_y)
+            return false
+          end
+        end
+      end
+    end
+    
+    true
   end
 
 end

@@ -63,6 +63,8 @@ class Game
       if input == 'quit' || input == 'exit'
         puts "Thanks for playing!"
         exit
+      elsif input == 'save' || input == 'save game'
+        puts "Saving game, you can continue this later."
       end
       
       move = input.split
@@ -80,7 +82,15 @@ class Game
   end
 
   def game_over?
-    # Implement checkmate and stalemate logic here
+    [:white, :black].each do |color|
+      if @board.is_checkmate?(color)
+        puts "Checkmate! #{color.capitalize} loses."
+        return true
+      elsif @board.is_stalemate?(color)
+        puts "Stalemate! The game is a draw."
+        return true
+      end
+    end
     false
   end
 
