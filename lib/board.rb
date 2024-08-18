@@ -22,6 +22,8 @@ class Board
     @white_castle_kingside = false
     @black_castle_queenside = false
     @black_castle_kingside = false
+    @last_move = nil
+    @en_passant_target = nil
     setup_board
   end
 
@@ -73,39 +75,34 @@ class Board
       puts "It's not #{piece.color}'s turn."
       return false
     end
-  
-    if piece.is_a?(King) && ((to_y - from_y).abs == 2)
-      side = to_y > from_y ? :kingside : :queenside
-      if can_castle?(piece.color, side)
-        perform_castling(piece.color, side)
-        return true
-      else
-        puts "Castling is not allowed at this time"
-        return false
-      end
-    end
-  
-    if move_results_in_check?(from_x, from_y, to_x, to_y)
-      puts "Invalid move: This move would put or leave your king in check."
-      return false
-    end
-  
+
     if valid_move?(piece, from_x, from_y, to_x, to_y)
-      perform_move(piece, to_x, to_y)
+      perform_move(piece, from_x, from_y, to_x, to_y)
+      update_last_move(piece, from_x, from_y, to_x, to_y)
+      update_en_passant_target(piece, from_x, from_y, to_x, to_y)
       puts "Move performed successfully"
-  
-      opponent_color = opposite_color(piece.color)
-      if king_in_check?(opponent_color)
-        puts "Check!"
-        if is_checkmate?(opponent_color)
-          puts "Checkmate! #{opponent_color.capitalize} loses."
-          return true
-        end
-      end
       true
     else
       puts "Invalid move for #{piece.color} #{piece.class}"
       false
+    end
+  end
+
+  def update_last_move(piece, from_x, from_y, to_x, to_y)
+    @last_move = {
+      piece: piece,
+      from: [from_x, from_y],
+      to: [to_x, to_y]
+    }
+  end
+
+  def update_en_passant_target(piece, from_x, from_y, to_x, to_y)
+    if piece.is_a?(Pawn) && (to_x - from_x).abs == 2
+      @en_passant_target = [to_x, to_y]
+      puts "Updated en passant target: #{@en_passant_target.inspect}"
+    else
+      @en_passant_target = nil
+      puts "Cleared en passant target"
     end
   end
 
@@ -143,14 +140,29 @@ class Board
     piece.position = old_position
   end
 
-  def perform_move(piece, to_x, to_y)
-    from_x, from_y = piece.position
+  def perform_move(piece, from_x, from_y, to_x, to_y)
     @grid[from_x][from_y] = nil
-    captured_piece = @grid[to_x][to_y]
-    capture_piece(captured_piece) if captured_piece
+  
+    # Handle en passant capture
+    if piece.is_a?(Pawn) && en_passant_move?(piece, from_x, from_y, to_x, to_y)
+      capture_x, capture_y = @en_passant_target
+      captured_piece = @grid[capture_x][capture_y]
+      if captured_piece
+        capture_piece(captured_piece)
+        @grid[capture_x][capture_y] = nil
+        puts "En passant capture performed!"
+      else
+        puts "Warning: Expected to find a piece for en passant capture at [#{capture_x}, #{capture_y}], but found none."
+      end
+    else
+      captured_piece = @grid[to_x][to_y]
+      capture_piece(captured_piece) if captured_piece
+    end
+  
     @grid[to_x][to_y] = piece
     piece.position = [to_x, to_y]
     piece.mark_moved
+    
     if piece.is_a?(Pawn) && (to_x == 7 || to_x == 0)
       promote_piece(piece, to_x)
     end
@@ -207,17 +219,53 @@ class Board
   end
 
   def valid_pawn_move?(pawn, from_x, from_y, to_x, to_y, check_only: false)
+    #puts "Checking pawn move validity:"
+    #puts "  From: [#{from_x}, #{from_y}]"
+    #puts "  To: [#{to_x}, #{to_y}]"
+
     direction = pawn.color == :white ? 1 : -1
+    
+    # Normal pawn moves
     if from_y == to_y # Moving forward
       if from_x + direction == to_x
         return piece_at(to_x, to_y).nil?
-      elsif from_x + 2 * direction == to_x && (pawn.color == :white ? from_x == 1 : from_x == 6)
+      elsif from_x + 2 * direction == to_x && !pawn.has_moved?
         return piece_at(from_x + direction, from_y).nil? && piece_at(to_x, to_y).nil?
       end
     elsif (from_y - to_y).abs == 1 && from_x + direction == to_x # Capturing diagonally
+      return true if en_passant_move?(pawn, from_x, from_y, to_x, to_y)
       return check_only || (piece_at(to_x, to_y) && piece_at(to_x, to_y).color != pawn.color)
     end
+
+    #puts "  Invalid pawn move"
     false
+  end
+
+  def en_passant_move?(pawn, from_x, from_y, to_x, to_y)
+    return false unless @en_passant_target
+  
+    target_x, target_y = @en_passant_target
+    direction = pawn.color == :white ? 1 : -1
+  
+    #puts "Checking en passant move:"
+    #puts "  Pawn color: #{pawn.color}"
+    #puts "  From: [#{from_x}, #{from_y}]"
+    #puts "  To: [#{to_x}, #{to_y}]"
+    #puts "  En passant target: #{@en_passant_target.inspect}"
+    #puts "  Pawn on en passant rank? #{pawn.en_passant_rank?}"
+    #puts "  Is pawn moving one square forward? #{from_x + direction == to_x}"
+    #puts "  Is pawn moving diagonally? #{(from_y - to_y).abs == 1}"
+    #puts "  Is pawn moving to the correct file? #{to_y == target_y}"
+    #puts "  Is pawn capturing the correct rank? #{to_x == target_x + direction}"
+  
+    valid = pawn.en_passant_rank? &&
+            from_x + direction == to_x &&
+            (from_y - to_y).abs == 1 &&
+            to_y == target_y &&
+            to_x == target_x + direction
+  
+    puts "  En passant move valid? #{valid}"
+    valid
   end
 
   def valid_rook_move?(from_x, from_y, to_x, to_y, check_only: false)
@@ -276,6 +324,7 @@ class Board
   end
 
   def capture_piece(piece)
+    return unless piece # Add this guard clause
     @pieces.delete(piece)
     if piece.color == :white
       @captured_pieces_white << piece
