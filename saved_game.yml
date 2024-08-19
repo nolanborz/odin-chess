@@ -1,0 +1,299 @@
+---
+:board: !ruby/object:Board
+  grid:
+  - - &17
+      class: Rook
+      position:
+      - 0
+      - 0
+      color: :white
+      has_moved: false
+    - &18
+      class: Knight
+      position:
+      - 0
+      - 1
+      color: :white
+      has_moved: false
+    - &19
+      class: Bishop
+      position:
+      - 0
+      - 2
+      color: :white
+      has_moved: false
+    - &20
+      class: Queen
+      position:
+      - 0
+      - 3
+      color: :white
+      has_moved: false
+    - &21
+      class: King
+      position:
+      - 0
+      - 4
+      color: :white
+      has_moved: false
+    - &22
+      class: Bishop
+      position:
+      - 0
+      - 5
+      color: :white
+      has_moved: false
+    - &23
+      class: Knight
+      position:
+      - 0
+      - 6
+      color: :white
+      has_moved: false
+    - &24
+      class: Rook
+      position:
+      - 0
+      - 7
+      color: :white
+      has_moved: false
+  - - &1
+      class: Pawn
+      position:
+      - 1
+      - 0
+      color: :white
+      has_moved: false
+    - &3
+      class: Pawn
+      position:
+      - 1
+      - 1
+      color: :white
+      has_moved: false
+    - &5
+      class: Pawn
+      position:
+      - 1
+      - 2
+      color: :white
+      has_moved: false
+    -
+    - &9
+      class: Pawn
+      position:
+      - 1
+      - 4
+      color: :white
+      has_moved: false
+    - &11
+      class: Pawn
+      position:
+      - 1
+      - 5
+      color: :white
+      has_moved: false
+    - &13
+      class: Pawn
+      position:
+      - 1
+      - 6
+      color: :white
+      has_moved: false
+    - &15
+      class: Pawn
+      position:
+      - 1
+      - 7
+      color: :white
+      has_moved: false
+  - -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+  - -
+    -
+    -
+    - &7
+      class: Pawn
+      position:
+      - 3
+      - 3
+      color: :white
+      has_moved: true
+    -
+    -
+    -
+    -
+  - -
+    -
+    -
+    -
+    -
+    -
+    - &14
+      class: Pawn
+      position:
+      - 4
+      - 6
+      color: :black
+      has_moved: true
+    -
+  - -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+  - - &2
+      class: Pawn
+      position:
+      - 6
+      - 0
+      color: :black
+      has_moved: false
+    - &4
+      class: Pawn
+      position:
+      - 6
+      - 1
+      color: :black
+      has_moved: false
+    - &6
+      class: Pawn
+      position:
+      - 6
+      - 2
+      color: :black
+      has_moved: false
+    - &8
+      class: Pawn
+      position:
+      - 6
+      - 3
+      color: :black
+      has_moved: false
+    - &10
+      class: Pawn
+      position:
+      - 6
+      - 4
+      color: :black
+      has_moved: false
+    - &12
+      class: Pawn
+      position:
+      - 6
+      - 5
+      color: :black
+      has_moved: false
+    -
+    - &16
+      class: Pawn
+      position:
+      - 6
+      - 7
+      color: :black
+      has_moved: false
+  - - &25
+      class: Rook
+      position:
+      - 7
+      - 0
+      color: :black
+      has_moved: false
+    - &26
+      class: Knight
+      position:
+      - 7
+      - 1
+      color: :black
+      has_moved: false
+    - &27
+      class: Bishop
+      position:
+      - 7
+      - 2
+      color: :black
+      has_moved: false
+    - &28
+      class: Queen
+      position:
+      - 7
+      - 3
+      color: :black
+      has_moved: false
+    - &29
+      class: King
+      position:
+      - 7
+      - 4
+      color: :black
+      has_moved: false
+    - &30
+      class: Bishop
+      position:
+      - 7
+      - 5
+      color: :black
+      has_moved: false
+    - &31
+      class: Knight
+      position:
+      - 7
+      - 6
+      color: :black
+      has_moved: false
+    - &32
+      class: Rook
+      position:
+      - 7
+      - 7
+      color: :black
+      has_moved: false
+  pieces:
+  - *1
+  - *2
+  - *3
+  - *4
+  - *5
+  - *6
+  - *7
+  - *8
+  - *9
+  - *10
+  - *11
+  - *12
+  - *13
+  - *14
+  - *15
+  - *16
+  - *17
+  - *18
+  - *19
+  - *20
+  - *21
+  - *22
+  - *23
+  - *24
+  - *25
+  - *26
+  - *27
+  - *28
+  - *29
+  - *30
+  - *31
+  - *32
+  current_player: :white
+  captured_pieces_white: []
+  captured_pieces_black: []
+  en_passant_target:
+  - 4
+  - 6
+:current_player_color: :white

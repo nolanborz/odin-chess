@@ -1,4 +1,5 @@
 require_relative 'board'
+require 'yaml'
 
 class Player
   attr_reader :color
@@ -20,6 +21,8 @@ class Game
   def setup_game
     puts "Welcome to Ruby Chess!"
     puts "Enter moves in the format 'e2 e4'"
+    puts "Type 'save' to save the game"
+    puts "Type 'load' to load a saved game"
     puts "Type 'quit' or 'exit' to end the game"
     puts "-------------------------"
     @board.display
@@ -38,7 +41,21 @@ class Game
   def make_move
     loop do
       puts "#{@current_player.color.capitalize}'s turn"
-      from, to = get_move_input
+      input = get_move_input
+      case input
+      when 'save'
+        save_game
+        next
+      when 'load'
+        if load_game
+          @board.display
+          next
+        else
+          next
+        end
+      end
+      
+      from, to = input
       from_x, from_y = convert_notation(from)
       to_x, to_y = convert_notation(to)
       
@@ -53,21 +70,23 @@ class Game
 
   def get_move_input
     loop do
-      print "Enter move (e.g., e2 e4): "
+      print "Enter move (e.g., e2 e4), 'save', 'load', or 'quit': "
       input = gets.chomp.downcase
-      if input == 'quit' || input == 'exit'
+      case input
+      when 'quit', 'exit'
         puts "Thanks for playing!"
         exit
-      elsif input == 'save' || input == 'save game'
-        puts "Saving game, you can continue this later."
-        exit
-      end
-      
-      move = input.split
-      if move.length == 2 && move.all? { |square| valid_square?(square) }
-        return move
+      when 'save'
+        return 'save'
+      when 'load'
+        return 'load'
       else
-        puts "Invalid input. Please use the format 'e2 e4' or type 'quit' to exit."
+        move = input.split
+        if move.length == 2 && move.all? { |square| valid_square?(square) }
+          return move
+        else
+          puts "Invalid input. Please use the format 'e2 e4' or type 'save', 'load', or 'quit'."
+        end
       end
     end
   end
@@ -91,7 +110,6 @@ class Game
   end
 
   def announce_result
-    # Implement game result announcement here
     puts "Game Over!"
   end
 
@@ -104,6 +122,47 @@ class Game
     row = square[1].to_i - 1
     [row, col]
   end
+
+  def save_game
+    puts 'Saving game...'
+    game_state = {
+      board: @board,
+      current_player_color: @current_player.color
+    }
+    yaml = YAML.dump(game_state)
+    File.open('saved_game.yml', 'w') { |file| file.write(yaml) }
+    puts 'Game saved successfully.'
+  end
+
+  def load_game
+    if File.exist?('saved_game.yml')
+      yaml = File.read('saved_game.yml')
+      begin
+        game_state = YAML.safe_load(yaml, 
+          permitted_classes: [Symbol, Board, Piece, Pawn, Rook, Knight, Bishop, Queen, King],
+          aliases: true
+        )
+        @board = game_state[:board]
+        @current_player = (game_state[:current_player_color] == :white) ? @player_white : @player_black
+        @board.set_current_player(@current_player.color)
+        puts 'Game loaded successfully.'
+        @board.display
+        true
+      rescue => e
+        puts "Error loading game: #{e.message}"
+        puts e.backtrace
+        false
+      end
+    else
+      puts "No saved game found."
+      false
+    end
+  end
+end
+
+if __FILE__ == $0
+  game = Game.new
+  game.setup_game
 end
 
 nolan = Game.new

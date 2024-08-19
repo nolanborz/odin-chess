@@ -1,11 +1,12 @@
-class Board
-  require_relative 'pawn'
-  require_relative 'king'
-  require_relative 'queen'
-  require_relative 'rook'
-  require_relative 'knight'
-  require_relative 'bishop'
+require_relative 'pawn'
+require_relative 'king'
+require_relative 'queen'
+require_relative 'rook'
+require_relative 'knight'
+require_relative 'bishop'
+require_relative 'piece'
 
+class Board
   LIGHT_SQUARE = "\e[47m   \e[0m" # White background
   DARK_SQUARE = "\e[100m   \e[0m" # Dark gray background
 
@@ -25,6 +26,46 @@ class Board
     @last_move = nil
     @en_passant_target = nil
     setup_board
+  end
+  def to_yaml_properties
+    ['@grid', '@pieces', '@current_player', '@captured_pieces_white', '@captured_pieces_black', '@en_passant_target']
+  end
+  def to_yaml
+    YAML.dump(self)
+  end
+
+  def self.from_yaml(yaml)
+    YAML.load(yaml)
+  end
+
+  def encode_with(coder)
+    to_yaml_properties.each do |prop|
+      coder[prop.to_s.sub('@', '')] = instance_variable_get(prop)
+    end
+  end
+
+  def init_with(coder)
+    @grid = coder['grid'].map do |row|
+      row.map do |piece|
+        if piece.is_a?(Hash) && piece['class']
+          Object.const_get(piece['class']).new(piece['position'][0], piece['position'][1], piece['color'])
+        else
+          piece
+        end
+      end
+    end
+    @pieces = coder['pieces'].map do |piece|
+      if piece.is_a?(Hash) && piece['class']
+        Object.const_get(piece['class']).new(piece['position'][0], piece['position'][1], piece['color'])
+      else
+        piece
+      end
+    end
+    @current_player = coder['current_player']
+    @captured_pieces_white = coder['captured_pieces_white']
+    @captured_pieces_black = coder['captured_pieces_black']
+    @en_passant_target = coder['en_passant_target']
+    @columns_arr = [' a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
   end
 
   def setup_board
