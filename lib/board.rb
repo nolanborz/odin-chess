@@ -105,7 +105,7 @@ class Board
 
   def move_piece(from_x, from_y, to_x, to_y)
     piece = @grid[from_x][from_y]
-    puts "Attempting to move #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
+    #puts "Attempting to move #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
   
     unless piece
       puts "No piece at [#{from_x}, #{from_y}]"
@@ -140,10 +140,8 @@ class Board
   def update_en_passant_target(piece, from_x, from_y, to_x, to_y)
     if piece.is_a?(Pawn) && (to_x - from_x).abs == 2
       @en_passant_target = [to_x, to_y]
-      puts "Updated en passant target: #{@en_passant_target.inspect}"
     else
       @en_passant_target = nil
-      puts "Cleared en passant target"
     end
   end
 
@@ -251,7 +249,6 @@ class Board
       false
     end
   
-    #puts "Move for #{piece.class} from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{move_valid ? 'valid' : 'invalid'}"
     if move_valid && !check_only
       !move_results_in_check?(from_x, from_y, to_x, to_y)
     else
@@ -260,9 +257,7 @@ class Board
   end
 
   def valid_pawn_move?(pawn, from_x, from_y, to_x, to_y, check_only: false)
-    #puts "Checking pawn move validity:"
-    #puts "  From: [#{from_x}, #{from_y}]"
-    #puts "  To: [#{to_x}, #{to_y}]"
+
 
     direction = pawn.color == :white ? 1 : -1
     
@@ -277,8 +272,6 @@ class Board
       return true if en_passant_move?(pawn, from_x, from_y, to_x, to_y)
       return check_only || (piece_at(to_x, to_y) && piece_at(to_x, to_y).color != pawn.color)
     end
-
-    #puts "  Invalid pawn move"
     false
   end
 
@@ -305,7 +298,6 @@ class Board
             to_y == target_y &&
             to_x == target_x + direction
   
-    puts "  En passant move valid? #{valid}"
     valid
   end
 
@@ -327,7 +319,6 @@ class Board
     dx = (to_x - from_x).abs
     dy = (to_y - from_y).abs
     is_valid = (from_x == to_x || from_y == to_y || dx == dy) && path_clear?(from_x, from_y, to_x, to_y)
-    #puts "Queen move from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}] is #{is_valid ? 'valid' : 'invalid'}. dx: #{dx}, dy: #{dy}"
     is_valid
   end
 
@@ -353,19 +344,16 @@ class Board
 
     while x != to_x || y != to_y
       if piece_at(x, y)
-        #puts "Path blocked at [#{x}, #{y}]"
         return false
       end
       x += dx
       y += dy
     end
-
-    #puts "Path is clear from [#{from_x}, #{from_y}] to [#{to_x}, #{to_y}]"
     true
   end
 
   def capture_piece(piece)
-    return unless piece # Add this guard clause
+    return unless piece
     @pieces.delete(piece)
     if piece.color == :white
       @captured_pieces_white << piece
@@ -409,9 +397,9 @@ class Board
   end
 
   def is_checkmate?(color)
-    puts "Checking checkmate for #{color}"
+    #puts "Checking checkmate for #{color}"
     unless king_in_check?(color)
-      puts "#{color} king is not in check, so it's not checkmate"
+      #puts "#{color} king is not in check, so it's not checkmate"
       return false
     end
     
